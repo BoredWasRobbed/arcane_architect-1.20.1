@@ -18,8 +18,15 @@
 		"main": [
 			"net.bored.ArcaneArchitect"
 		],
+		"client": [
+			"net.bored.ArcaneArchitectClient"
+		],
 		"fabric-datagen": [
-			"net.bored.ArcaneArchitectDataGenerator"
+			"net.bored.ArcaneArchitectDataGenerator",
+			{
+				"config": "arcanearchitect.client.mixins.json",
+				"environment": "client"
+			}
 		]
 	},
 	"mixins": [
