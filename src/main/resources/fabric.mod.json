@@ -22,15 +22,15 @@
 			"net.bored.ArcaneArchitectClient"
 		],
 		"fabric-datagen": [
-			"net.bored.ArcaneArchitectDataGenerator",
-			{
-				"config": "arcanearchitect.client.mixins.json",
-				"environment": "client"
-			}
+			"net.bored.ArcaneArchitectDataGenerator"
 		]
 	},
 	"mixins": [
-		"arcanearchitect.mixins.json"
+		"arcanearchitect.mixins.json",
+		{
+			"config": "arcanearchitect.client.mixins.json",
+			"environment": "client"
+		}
 	],
 	"depends": {
 		"fabricloader": ">=0.18.1",
