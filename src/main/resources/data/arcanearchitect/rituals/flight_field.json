@@ -1,0 +1,15 @@
+{
+  "pattern": [
+    " W ",
+    "W@W",
+    " W "
+  ],
+  "keys": {
+    "W": "air",
+    "@": "aether"
+  },
+  "pressure_min": 0.4,
+  "pressure_max": 1.0,
+  "effect": "arcanearchitect:levitation",
+  "continuous": true
+}

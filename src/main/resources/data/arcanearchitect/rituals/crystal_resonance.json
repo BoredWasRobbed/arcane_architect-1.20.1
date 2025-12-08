@@ -1,0 +1,14 @@
+{
+  "pattern": [
+    "I@I"
+  ],
+  "keys": {
+    "I": "item",
+    "@": "aether"
+  },
+  "pressure_min": 0.0,
+  "pressure_max": 1.0,
+  "effect": "arcanearchitect:lightning",
+  "required_item": "minecraft:diamond",
+  "consume_item": true
+}

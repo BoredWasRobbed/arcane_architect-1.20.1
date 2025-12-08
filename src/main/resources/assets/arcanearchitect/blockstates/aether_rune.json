@@ -1,7 +1,5 @@
 {
   "variants": {
-    "": {
-      "model": "arcanearchitect:block/aether_rune"
-    }
+    "": { "model": "arcanearchitect:block/aether_rune" }
   }
 }

@@ -1,11 +1,14 @@
 package net.bored;
 
 import net.bored.command.AetherDebugCommand;
+import net.bored.networking.ModMessages;
+import net.bored.recipe.RitualManager;
 import net.bored.registry.ModBlockEntities;
 import net.bored.registry.ModBlocks;
-import net.bored.mixin.ServerWorldMixin;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.minecraft.resource.ResourceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,8 +24,12 @@ public class ArcaneArchitect implements ModInitializer {
 		ModBlocks.registerBlocks();
 		ModBlockEntities.registerBlockEntities();
 
-		CommandRegistrationCallback.EVENT.register(AetherDebugCommand::register);
+		// Register Networking
+		ModMessages.registerC2SPackets();
 
-		// Note: Mixins are loaded automatically by Fabric via json
+		// Register Ritual Data Loader
+		ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(RitualManager.INSTANCE);
+
+		CommandRegistrationCallback.EVENT.register(AetherDebugCommand::register);
 	}
 }

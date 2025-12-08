@@ -1,0 +1,15 @@
+{
+  "pattern": [
+    "A@A"
+  ],
+  "keys": {
+    "A": "air",
+    "@": "aether"
+  },
+  "pressure_min": 0.0,
+  "pressure_max": 1.0,
+  "effect": "arcanearchitect:lightning",
+  "effect_data": {
+    "power": 1.0
+  }
+}
