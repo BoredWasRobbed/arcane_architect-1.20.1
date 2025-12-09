@@ -1,0 +1,29 @@
+{
+  "pattern": [
+    " D ",
+    "G@E",
+    " I "
+  ],
+  "keys": {
+    "D": "item",
+    "G": "item",
+    "E": "item",
+    "I": "item",
+    "@": "aether"
+  },
+  "item_keys": {
+    "D": "minecraft:diamond",
+    "G": "minecraft:gold_ingot",
+    "E": "minecraft:emerald",
+    "I": "minecraft:iron_ingot"
+  },
+  "pressure_min": 0.4,
+  "pressure_max": 1.0,
+  "effect": "arcanearchitect:explosion",
+  "effect_data": {
+    "power": 4.0
+  },
+  "consume_item": true,
+  "require_all_items": true,
+  "clear_items": false
+}

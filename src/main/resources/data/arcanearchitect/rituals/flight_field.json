@@ -11,5 +11,17 @@
   "pressure_min": 0.4,
   "pressure_max": 1.0,
   "effect": "arcanearchitect:levitation",
-  "continuous": true
+  "continuous": true,
+  "startup_time": 60,
+  "interval": 20,
+  "affects_owner": true,
+  "augments": [
+    {
+      "rune": "earth",
+      "offset": [0, 0, 2],
+      "modify": {
+        "affects_owner": false
+      }
+    }
+  ]
 }

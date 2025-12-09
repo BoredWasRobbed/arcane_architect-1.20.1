@@ -1,0 +1,21 @@
+{
+  "pattern": [
+    "WWW",
+    "W  ",
+    "@W ",
+    "W  ",
+    "WWW"
+  ],
+  "keys": {
+    "W": "wall",
+    "@": "aether"
+  },
+  "pressure_min": 0.0,
+  "pressure_max": 1.0,
+  "effect": "arcanearchitect:explosion",
+  "effect_data": {
+    "power": 10.0
+  },
+  "continuous": true,
+  "interval": 1
+}

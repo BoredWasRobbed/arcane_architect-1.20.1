@@ -12,7 +12,9 @@ import net.minecraft.util.math.BlockPos;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class RitualManager implements SimpleSynchronousResourceReloadListener {
@@ -48,6 +50,7 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
     }
 
     private RitualRecipe parse(Identifier fileId, JsonObject json) {
+        // Parse Rune Types
         JsonObject keysJson = JsonHelper.getObject(json, "keys");
         Map<Character, RuneType> keyMap = new HashMap<>();
         for (String key : keysJson.keySet()) {
@@ -56,14 +59,23 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
             keyMap.put(key.charAt(0), type);
         }
 
+        // Parse Specific Item Requirements
+        JsonObject itemKeysJson = JsonHelper.getObject(json, "item_keys", new JsonObject());
+        Map<Character, String> itemKeyMap = new HashMap<>();
+        for (String key : itemKeysJson.keySet()) {
+            itemKeyMap.put(key.charAt(0), itemKeysJson.get(key).getAsString());
+        }
+
         JsonArray patternJson = JsonHelper.getArray(json, "pattern");
         Map<BlockPos, RuneType> patternMap = new HashMap<>();
+        Map<BlockPos, String> itemReqMap = new HashMap<>();
 
         int height = patternJson.size();
         int centerX = 0;
         int centerZ = 0;
         boolean centerFound = false;
 
+        // Find Center
         for (int z = 0; z < height; z++) {
             String row = patternJson.get(z).getAsString();
             for (int x = 0; x < row.length(); x++) {
@@ -79,6 +91,7 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
             throw new IllegalStateException("Ritual pattern missing center marker '@'");
         }
 
+        // Build Maps
         for (int z = 0; z < height; z++) {
             String row = patternJson.get(z).getAsString();
             for (int x = 0; x < row.length(); x++) {
@@ -88,6 +101,10 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
                 if (keyMap.containsKey(c)) {
                     BlockPos relPos = new BlockPos(x - centerX, 0, z - centerZ);
                     patternMap.put(relPos, keyMap.get(c));
+
+                    if (itemKeyMap.containsKey(c)) {
+                        itemReqMap.put(relPos, itemKeyMap.get(c));
+                    }
                 }
             }
         }
@@ -100,9 +117,32 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
         String requiredItem = JsonHelper.getString(json, "required_item", "");
         boolean consumeItem = JsonHelper.getBoolean(json, "consume_item", false);
 
-        // New Field
         boolean requireAllItems = JsonHelper.getBoolean(json, "require_all_items", false);
+        boolean clearItems = JsonHelper.getBoolean(json, "clear_items", false);
+        boolean shapeless = JsonHelper.getBoolean(json, "shapeless", false);
 
-        return new RitualRecipe(fileId, patternMap, minP, maxP, effect, data, continuous, requiredItem, consumeItem, requireAllItems);
+        int startupTime = JsonHelper.getInt(json, "startup_time", 0);
+        int interval = JsonHelper.getInt(json, "interval", 20);
+        boolean affectsOwner = JsonHelper.getBoolean(json, "affects_owner", true);
+
+        // Parse Augments
+        List<RitualAugment> augments = new ArrayList<>();
+        if (json.has("augments")) {
+            JsonArray augArray = json.getAsJsonArray("augments");
+            for (JsonElement augElem : augArray) {
+                JsonObject augObj = augElem.getAsJsonObject();
+                String runeName = JsonHelper.getString(augObj, "rune");
+                RuneType rune = RuneType.valueOf(runeName.toUpperCase());
+
+                JsonArray offsetArr = JsonHelper.getArray(augObj, "offset");
+                BlockPos offset = new BlockPos(offsetArr.get(0).getAsInt(), offsetArr.get(1).getAsInt(), offsetArr.get(2).getAsInt());
+
+                JsonObject modify = JsonHelper.getObject(augObj, "modify");
+
+                augments.add(new RitualAugment(rune, offset, modify));
+            }
+        }
+
+        return new RitualRecipe(fileId, patternMap, itemReqMap, minP, maxP, effect, data, continuous, requiredItem, consumeItem, requireAllItems, clearItems, shapeless, startupTime, interval, affectsOwner, augments);
     }
 }

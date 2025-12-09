@@ -1,8 +1,8 @@
 package net.bored.client.render;
 
 import net.bored.block.RuneBlock;
-import net.bored.block.enums.RuneType;
 import net.bored.block.entity.RuneBlockEntity;
+import net.bored.block.enums.RuneType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
@@ -28,9 +28,6 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
     @Override
     public void render(RuneBlockEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
         matrices.push();
-
-        // 1. Setup Transformation - VISUAL TWEAK: Lowered height
-        // Moved from 0.1 to 0.05 to sit closer to the ground
         matrices.translate(0.5, 0.05, 0.5);
         matrices.scale(0.8f, 0.8f, 0.8f);
 
@@ -56,47 +53,61 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
         float r = baseR;
         float g = baseG;
         float b = baseB;
+        float a = 1.0f; // Default Alpha
 
         if (entity.activationTimer > 0) {
-            float maxTime = RuneBlockEntity.MAX_ACTIVATION_TIME;
+            // Determine max time based on pulse type
+            float maxTime = entity.isWeakPulse ? RuneBlockEntity.MAX_PASSIVE_TIME : RuneBlockEntity.MAX_ACTIVE_TIME;
             float progress = (entity.activationTimer - tickDelta) / maxTime;
             float intensity = MathHelper.clamp(progress, 0.0f, 1.0f);
 
-            if (intensity > 0.8f) {
-                float flash = (intensity - 0.8f) * 5.0f;
-                r = MathHelper.lerp(flash, activeR, 1.0f);
-                g = MathHelper.lerp(flash, activeG, 1.0f);
-                b = MathHelper.lerp(flash, activeB, 1.0f);
-            } else {
-                r = MathHelper.lerp(intensity, baseR, activeR);
-                g = MathHelper.lerp(intensity, baseG, activeG);
-                b = MathHelper.lerp(intensity, baseB, activeB);
+            // Weak Pulse Logic (for passive "Ready" state)
+            if (entity.isWeakPulse) {
+                // Keep color as Active, but reduce alpha significantly
+                r = activeR;
+                g = activeG;
+                b = activeB;
+                // Fade in and out gently using sine wave
+                a = (MathHelper.sin(progress * MathHelper.PI) * 0.4f) + 0.1f;
+            }
+            else {
+                // Strong Pulse Logic (Original)
+                if (intensity > 0.8f) {
+                    float flashProgress = (intensity - 0.8f) / 0.2f;
+                    r = MathHelper.lerp(flashProgress, activeR, 1.0f);
+                    g = MathHelper.lerp(flashProgress, activeG, 1.0f);
+                    b = MathHelper.lerp(flashProgress, activeB, 1.0f);
+                } else {
+                    float fadeProgress = intensity / 0.8f;
+                    r = MathHelper.lerp(fadeProgress, baseR, activeR);
+                    g = MathHelper.lerp(fadeProgress, baseG, activeG);
+                    b = MathHelper.lerp(fadeProgress, baseB, activeB);
+                }
             }
         }
 
         VertexConsumer buffer = vertexConsumers.getBuffer(RenderLayer.getEntityTranslucent(BEAM_TEXTURE));
+        float thickness = 0.02f;
 
-        // VISUAL TWEAK: Thinner lines
-        float thickness = 0.02f; // Was 0.03f
-
+        // Pass alpha 'a' to drawing methods
         switch (type) {
-            case AIR -> drawPolygon(matrices, buffer, 3, 0.5f, thickness, light, overlay, r, g, b);
-            case FIRE -> drawStar(matrices, buffer, 5, 0.2f, 0.5f, thickness, light, overlay, r, g, b);
-            case EARTH -> drawPolygon(matrices, buffer, 4, 0.5f, thickness, light, overlay, r, g, b);
-            case WATER -> drawPolygon(matrices, buffer, 5, 0.5f, thickness, light, overlay, r, g, b);
+            case AIR -> drawPolygon(matrices, buffer, 3, 0.5f, thickness, light, overlay, r, g, b, a);
+            case FIRE -> drawStar(matrices, buffer, 5, 0.2f, 0.5f, thickness, light, overlay, r, g, b, a);
+            case EARTH -> drawPolygon(matrices, buffer, 4, 0.5f, thickness, light, overlay, r, g, b, a);
+            case WATER -> drawPolygon(matrices, buffer, 5, 0.5f, thickness, light, overlay, r, g, b, a);
             case AMPLIFY -> {
                 matrices.push();
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45));
-                drawPolygon(matrices, buffer, 4, 0.6f, thickness, light, overlay, r, g, b);
+                drawPolygon(matrices, buffer, 4, 0.6f, thickness, light, overlay, r, g, b, a);
                 matrices.pop();
             }
-            case CHANNEL -> drawLines(matrices, buffer, 0.5f, thickness, light, overlay, r, g, b);
+            case CHANNEL -> drawLines(matrices, buffer, 0.5f, thickness, light, overlay, r, g, b, a);
             case WALL -> {
-                drawBeam(matrices, buffer, -0.5f, 0, 0, 0.5f, 0, 0, thickness * 1.5f, light, overlay, r, g, b);
-                drawBeam(matrices, buffer, 0, 0, -0.5f, 0, 0, 0.5f, thickness * 1.5f, light, overlay, r, g, b);
+                drawBeam(matrices, buffer, -0.5f, 0, 0, 0.5f, 0, 0, thickness * 1.5f, light, overlay, r, g, b, a);
+                drawBeam(matrices, buffer, 0, 0, -0.5f, 0, 0, 0.5f, thickness * 1.5f, light, overlay, r, g, b, a);
             }
             case ITEM -> {
-                drawPolygon(matrices, buffer, 6, 0.5f, thickness, light, overlay, r, g, b);
+                drawPolygon(matrices, buffer, 6, 0.5f, thickness, light, overlay, r, g, b, a);
                 ItemStack stack = entity.getStack();
                 if (!stack.isEmpty()) {
                     matrices.push();
@@ -115,13 +126,13 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
                     matrices.pop();
                 }
             }
-            default -> drawPolygon(matrices, buffer, 32, 0.5f, thickness, light, overlay, r, g, b);
+            default -> drawPolygon(matrices, buffer, 32, 0.5f, thickness, light, overlay, r, g, b, a);
         }
 
         matrices.pop();
     }
 
-    private void drawPolygon(MatrixStack matrices, VertexConsumer buffer, int segments, float radius, float thickness, int light, int overlay, float r, float g, float b) {
+    private void drawPolygon(MatrixStack matrices, VertexConsumer buffer, int segments, float radius, float thickness, int light, int overlay, float r, float g, float b, float a) {
         for (int i = 0; i < segments; i++) {
             float angle1 = (float) i / segments * MathHelper.TAU;
             float angle2 = (float) (i + 1) / segments * MathHelper.TAU;
@@ -129,11 +140,11 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
             float z1 = MathHelper.sin(angle1) * radius;
             float x2 = MathHelper.cos(angle2) * radius;
             float z2 = MathHelper.sin(angle2) * radius;
-            drawBeam(matrices, buffer, x1, 0, z1, x2, 0, z2, thickness, light, overlay, r, g, b);
+            drawBeam(matrices, buffer, x1, 0, z1, x2, 0, z2, thickness, light, overlay, r, g, b, a);
         }
     }
 
-    private void drawStar(MatrixStack matrices, VertexConsumer buffer, int points, float innerRadius, float outerRadius, float thickness, int light, int overlay, float r, float g, float b) {
+    private void drawStar(MatrixStack matrices, VertexConsumer buffer, int points, float innerRadius, float outerRadius, float thickness, int light, int overlay, float r, float g, float b, float a) {
         int segments = points * 2;
         for (int i = 0; i < segments; i++) {
             float angle1 = (float) i / segments * MathHelper.TAU;
@@ -144,20 +155,20 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
             float z1 = MathHelper.sin(angle1) * r1;
             float x2 = MathHelper.cos(angle2) * r2;
             float z2 = MathHelper.sin(angle2) * r2;
-            drawBeam(matrices, buffer, x1, 0, z1, x2, 0, z2, thickness, light, overlay, r, g, b);
+            drawBeam(matrices, buffer, x1, 0, z1, x2, 0, z2, thickness, light, overlay, r, g, b, a);
         }
     }
 
-    private void drawLines(MatrixStack matrices, VertexConsumer buffer, float length, float thickness, int light, int overlay, float r, float g, float b) {
-        drawBeam(matrices, buffer, -0.2f, 0, -length, -0.2f, 0, length, thickness, light, overlay, r, g, b);
-        drawBeam(matrices, buffer, 0.2f, 0, -length, 0.2f, 0, length, thickness, light, overlay, r, g, b);
+    private void drawLines(MatrixStack matrices, VertexConsumer buffer, float length, float thickness, int light, int overlay, float r, float g, float b, float a) {
+        drawBeam(matrices, buffer, -0.2f, 0, -length, -0.2f, 0, length, thickness, light, overlay, r, g, b, a);
+        drawBeam(matrices, buffer, 0.2f, 0, -length, 0.2f, 0, length, thickness, light, overlay, r, g, b, a);
     }
 
     private void drawBeam(MatrixStack matrices, VertexConsumer buffer,
                           float x1, float y1, float z1,
                           float x2, float y2, float z2,
                           float thickness, int light, int overlay,
-                          float r, float g, float b) {
+                          float r, float g, float b, float a) {
 
         float dx = x2 - x1;
         float dz = z2 - z1;
@@ -175,14 +186,10 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
         float xEL = x2 + px; float zEL = z2 + pz;
         float xER = x2 - px; float zER = z2 - pz;
 
-        // VISUAL TWEAK: Vertical Squashing
-        // Instead of y1 +- thickness, we simply use y1 to y1 + small_height
-        // This makes them look like flat strips on the ground
         float yMin = y1;
         float yMax = y1 + 0.015f;
 
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        float a = 1.0f;
 
         // TOP
         vertex(buffer, matrix, xSL, yMax, zSL, r, g, b, a, light, overlay);

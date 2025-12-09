@@ -5,6 +5,7 @@ import net.bored.networking.ModMessages;
 import net.bored.recipe.RitualManager;
 import net.bored.registry.ModBlockEntities;
 import net.bored.registry.ModBlocks;
+import net.bored.registry.RitualEffects;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
@@ -23,6 +24,9 @@ public class ArcaneArchitect implements ModInitializer {
 		// Register Blocks and Entities
 		ModBlocks.registerBlocks();
 		ModBlockEntities.registerBlockEntities();
+
+		// Register Ritual Effects
+		RitualEffects.registerEffects();
 
 		// Register Networking
 		ModMessages.registerC2SPackets();
