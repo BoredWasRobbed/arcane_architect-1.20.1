@@ -1,5 +1,6 @@
 package net.bored.client.render;
 
+import net.bored.block.AbstractRuneBlock;
 import net.bored.block.RuneBlock;
 import net.bored.block.entity.RuneBlockEntity;
 import net.bored.block.enums.RuneType;
@@ -14,6 +15,7 @@ import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
@@ -28,14 +30,35 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
     @Override
     public void render(RuneBlockEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
         matrices.push();
-        matrices.translate(0.5, 0.05, 0.5);
+
+        // 1. Center in block
+        matrices.translate(0.5, 0.5, 0.5);
+
+        // 2. Apply Rotation based on FACING
+        BlockState state = entity.getCachedState();
+        if (state.contains(AbstractRuneBlock.FACING)) {
+            Direction facing = state.get(AbstractRuneBlock.FACING);
+            switch (facing) {
+                case DOWN -> matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180));
+                case NORTH -> matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-90));
+                case SOUTH -> matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90));
+                case WEST -> matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90));
+                case EAST -> matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-90));
+                case UP -> {} // No rotation needed for UP
+            }
+        }
+
+        // 3. Move to "Floor" (now relative to rotation)
+        // Since we centered at 0.5, 0.5, 0.5, we move down 0.45 to get to 0.05 height
+        matrices.translate(0.0, -0.45, 0.0);
+
+        // 4. Global Scale
         matrices.scale(0.8f, 0.8f, 0.8f);
 
         long time = entity.getWorld() != null ? entity.getWorld().getTime() : 0;
         float rotation = (time + tickDelta) * 1.5f;
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(rotation));
 
-        BlockState state = entity.getCachedState();
         RuneType type = RuneType.AETHER;
         if (state.getBlock() instanceof RuneBlock) {
             type = state.get(RuneBlock.TYPE);
@@ -53,25 +76,20 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
         float r = baseR;
         float g = baseG;
         float b = baseB;
-        float a = 1.0f; // Default Alpha
+        float a = 1.0f;
 
         if (entity.activationTimer > 0) {
-            // Determine max time based on pulse type
             float maxTime = entity.isWeakPulse ? RuneBlockEntity.MAX_PASSIVE_TIME : RuneBlockEntity.MAX_ACTIVE_TIME;
             float progress = (entity.activationTimer - tickDelta) / maxTime;
             float intensity = MathHelper.clamp(progress, 0.0f, 1.0f);
 
-            // Weak Pulse Logic (for passive "Ready" state)
             if (entity.isWeakPulse) {
-                // Keep color as Active, but reduce alpha significantly
-                r = activeR;
-                g = activeG;
-                b = activeB;
-                // Fade in and out gently using sine wave
-                a = (MathHelper.sin(progress * MathHelper.PI) * 0.4f) + 0.1f;
+                float sine = MathHelper.sin(progress * MathHelper.PI);
+                r = MathHelper.lerp(sine, baseR, activeR);
+                g = MathHelper.lerp(sine, baseG, activeG);
+                b = MathHelper.lerp(sine, baseB, activeB);
             }
             else {
-                // Strong Pulse Logic (Original)
                 if (intensity > 0.8f) {
                     float flashProgress = (intensity - 0.8f) / 0.2f;
                     r = MathHelper.lerp(flashProgress, activeR, 1.0f);
@@ -89,7 +107,6 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
         VertexConsumer buffer = vertexConsumers.getBuffer(RenderLayer.getEntityTranslucent(BEAM_TEXTURE));
         float thickness = 0.02f;
 
-        // Pass alpha 'a' to drawing methods
         switch (type) {
             case AIR -> drawPolygon(matrices, buffer, 3, 0.5f, thickness, light, overlay, r, g, b, a);
             case FIRE -> drawStar(matrices, buffer, 5, 0.2f, 0.5f, thickness, light, overlay, r, g, b, a);
@@ -105,6 +122,10 @@ public class RuneBlockEntityRenderer implements BlockEntityRenderer<RuneBlockEnt
             case WALL -> {
                 drawBeam(matrices, buffer, -0.5f, 0, 0, 0.5f, 0, 0, thickness * 1.5f, light, overlay, r, g, b, a);
                 drawBeam(matrices, buffer, 0, 0, -0.5f, 0, 0, 0.5f, thickness * 1.5f, light, overlay, r, g, b, a);
+            }
+            case VENT -> {
+                drawBeam(matrices, buffer, -0.4f, 0, -0.4f, 0.4f, 0, 0.4f, thickness, light, overlay, r, g, b, a);
+                drawBeam(matrices, buffer, -0.4f, 0, 0.4f, 0.4f, 0, -0.4f, thickness, light, overlay, r, g, b, a);
             }
             case ITEM -> {
                 drawPolygon(matrices, buffer, 6, 0.5f, thickness, light, overlay, r, g, b, a);

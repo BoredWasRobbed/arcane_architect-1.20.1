@@ -1,7 +1,5 @@
-package net.bored.system;
+package net.bored.aether;
 
-import net.bored.access.AetherAttachment;
-import net.bored.data.AetherChunkData;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;

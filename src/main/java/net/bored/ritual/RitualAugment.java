@@ -1,4 +1,4 @@
-package net.bored.recipe;
+package net.bored.ritual;
 
 import com.google.gson.JsonObject;
 import net.bored.block.enums.RuneType;

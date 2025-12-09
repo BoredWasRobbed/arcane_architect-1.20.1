@@ -1,7 +1,7 @@
-package net.bored.effect;
+package net.bored.ritual.effect;
 
-import net.bored.api.RitualEffect;
-import net.bored.recipe.RitualRecipe;
+import net.bored.ritual.RitualEffect;
+import net.bored.ritual.RitualRecipe;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LightningEntity;
 import net.minecraft.server.world.ServerWorld;

@@ -3,12 +3,13 @@ package net.bored.block;
 import net.bored.block.entity.RuneBlockEntity;
 import net.bored.block.enums.RuneType;
 import net.bored.registry.ModBlockEntities;
-import net.bored.system.RitualSystem;
+import net.bored.ritual.RitualSystem;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -38,6 +39,17 @@ public class RuneBlock extends AbstractRuneBlock {
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
         super.appendProperties(builder);
         builder.add(TYPE);
+    }
+
+    @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
+        super.onPlaced(world, pos, state, placer, itemStack);
+        if (!world.isClient && placer instanceof PlayerEntity player) {
+            BlockEntity be = world.getBlockEntity(pos);
+            if (be instanceof RuneBlockEntity rune) {
+                rune.setOwner(player.getUuid());
+            }
+        }
     }
 
     @Nullable

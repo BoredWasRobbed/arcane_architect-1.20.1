@@ -1,9 +1,8 @@
 package net.bored.mixin;
 
-import net.bored.access.AetherAttachment;
+import net.bored.aether.AetherAttachment;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.structure.StructureTemplateManager;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.ChunkSerializer;
 import net.minecraft.world.chunk.Chunk;

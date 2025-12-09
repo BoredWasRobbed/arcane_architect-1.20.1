@@ -1,4 +1,4 @@
-package net.bored.data;
+package net.bored.aether;
 
 import net.minecraft.nbt.NbtCompound;
 

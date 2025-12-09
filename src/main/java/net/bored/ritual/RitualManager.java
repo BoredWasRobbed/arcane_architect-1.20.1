@@ -1,4 +1,4 @@
-package net.bored.recipe;
+package net.bored.ritual;
 
 import com.google.gson.*;
 import net.bored.ArcaneArchitect;
@@ -125,6 +125,10 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
         int interval = JsonHelper.getInt(json, "interval", 20);
         boolean affectsOwner = JsonHelper.getBoolean(json, "affects_owner", true);
 
+        // Thermodynamics
+        float pressureCost = JsonHelper.getFloat(json, "pressure_cost", 0.002f);
+        float instabilityCost = JsonHelper.getFloat(json, "instability_cost", 0.005f);
+
         // Parse Augments
         List<RitualAugment> augments = new ArrayList<>();
         if (json.has("augments")) {
@@ -143,6 +147,6 @@ public class RitualManager implements SimpleSynchronousResourceReloadListener {
             }
         }
 
-        return new RitualRecipe(fileId, patternMap, itemReqMap, minP, maxP, effect, data, continuous, requiredItem, consumeItem, requireAllItems, clearItems, shapeless, startupTime, interval, affectsOwner, augments);
+        return new RitualRecipe(fileId, patternMap, itemReqMap, minP, maxP, effect, data, continuous, requiredItem, consumeItem, requireAllItems, clearItems, shapeless, startupTime, interval, affectsOwner, pressureCost, instabilityCost, augments);
     }
 }

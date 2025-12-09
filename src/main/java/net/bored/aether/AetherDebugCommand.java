@@ -1,11 +1,8 @@
-package net.bored.command;
+package net.bored.aether;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import net.bored.access.AetherAttachment;
-import net.bored.data.AetherChunkData;
-import net.bored.system.AetherPressureSystem;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;

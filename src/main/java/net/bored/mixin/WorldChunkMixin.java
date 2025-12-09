@@ -1,7 +1,7 @@
 package net.bored.mixin;
 
-import net.bored.access.AetherAttachment;
-import net.bored.data.AetherChunkData;
+import net.bored.aether.AetherAttachment;
+import net.bored.aether.AetherChunkData;
 import net.minecraft.world.chunk.Chunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;

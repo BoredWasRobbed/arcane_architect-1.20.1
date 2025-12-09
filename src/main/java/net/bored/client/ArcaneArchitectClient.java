@@ -1,10 +1,9 @@
-package net.bored;
+package net.bored.client;
 
-import net.bored.client.render.RuneBlockEntityRenderer;
-import net.bored.event.KeyInputHandler;
 import net.bored.registry.ModBlockEntities;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
+import net.bored.client.render.RuneBlockEntityRenderer;
 
 public class ArcaneArchitectClient implements ClientModInitializer {
 

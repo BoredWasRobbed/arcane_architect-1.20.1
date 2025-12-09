@@ -19,7 +19,7 @@
 			"net.bored.ArcaneArchitect"
 		],
 		"client": [
-			"net.bored.ArcaneArchitectClient"
+			"net.bored.client.ArcaneArchitectClient"
 		],
 		"fabric-datagen": [
 			"net.bored.ArcaneArchitectDataGenerator"

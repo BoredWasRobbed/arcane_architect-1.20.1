@@ -1,11 +1,11 @@
 package net.bored;
 
-import net.bored.command.AetherDebugCommand;
+import net.bored.aether.AetherDebugCommand;
 import net.bored.networking.ModMessages;
-import net.bored.recipe.RitualManager;
+import net.bored.ritual.RitualManager;
 import net.bored.registry.ModBlockEntities;
 import net.bored.registry.ModBlocks;
-import net.bored.registry.RitualEffects;
+import net.bored.ritual.RitualEffects;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;

@@ -1,16 +1,14 @@
-package net.bored.system;
+package net.bored.ritual;
 
-import net.bored.access.AetherAttachment;
-import net.bored.api.RitualEffect;
+import net.bored.aether.AetherAttachment;
+import net.bored.aether.AetherChunkData;
+import net.bored.block.AbstractRuneBlock;
 import net.bored.block.RuneBlock;
 import net.bored.block.entity.RuneBlockEntity;
 import net.bored.block.enums.RuneType;
-import net.bored.recipe.RitualAugment;
-import net.bored.recipe.RitualManager;
-import net.bored.recipe.RitualRecipe;
-import net.bored.registry.RitualEffects;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.Registries;
@@ -21,6 +19,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.chunk.Chunk;
 
@@ -34,14 +33,21 @@ public class RitualSystem {
     public static void tryActivate(ServerWorld world, BlockPos centerPos) {}
 
     public static void tryActivate(ServerWorld world, BlockPos centerPos, ServerPlayerEntity player) {
+        BlockState state = world.getBlockState(centerPos);
+
+        // Venting Logic
+        if (state.getBlock() instanceof RuneBlock && state.get(RuneBlock.TYPE) == RuneType.VENT) {
+            triggerVent(world, centerPos, player);
+            return;
+        }
+
         BlockEntity be = world.getBlockEntity(centerPos);
         if (!(be instanceof RuneBlockEntity rune)) return;
 
-        UUID owner = rune.getOwner();
-        if (owner != null && !owner.equals(player.getUuid())) {
-            player.sendMessage(Text.literal("§cYou are not the architect of this rune."), true);
-            world.playSound(null, centerPos, SoundEvents.BLOCK_CHEST_LOCKED, SoundCategory.BLOCKS, 1.0f, 1.0f);
-            return;
+        // Permanent Ownership Logic
+        if (rune.getOwner() == null) {
+            rune.setOwner(player.getUuid());
+            player.sendMessage(Text.literal("§bYou have claimed this ritual."), true);
         }
 
         if (rune.isRitualActive()) {
@@ -65,24 +71,27 @@ public class RitualSystem {
         }
     }
 
+    private static void triggerVent(ServerWorld world, BlockPos pos, ServerPlayerEntity player) {
+        Chunk chunk = world.getChunk(pos);
+        if (chunk instanceof AetherAttachment attachment) {
+            AetherChunkData data = attachment.getAetherData();
+
+            world.playSound(null, pos, SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 1.0f, 0.5f);
+            world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 50, 0.5, 0.5, 0.5, 0.1);
+            world.spawnParticles(ParticleTypes.CLOUD, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 20, 1.0, 0.5, 1.0, 0.2);
+
+            data.setStability(1.0f);
+            float currentP = data.getPressure();
+            data.setPressure(Math.max(0.0f, currentP - 0.3f));
+
+            player.sendMessage(Text.literal("§7[Vent] §fStability Restored. §bPressure dropped."), true);
+        }
+    }
+
     public static void checkAndPulse(ServerWorld world, BlockPos centerPos) {
         BlockEntity be = world.getBlockEntity(centerPos);
         if (!(be instanceof RuneBlockEntity rune)) return;
         if (rune.isRitualActive()) return;
-
-        if (!rune.cachedPassiveRecipeId.isEmpty()) {
-            RitualRecipe cachedRecipe = RitualManager.INSTANCE.getAll().get(new Identifier(rune.cachedPassiveRecipeId));
-            if (cachedRecipe != null) {
-                float pressure = getPressure(world, centerPos);
-                MatchResult quickCheck = analyzeRecipe(world, centerPos, cachedRecipe, rune.cachedPassiveRotation, pressure);
-
-                if (quickCheck.status == MatchStatus.SUCCESS) {
-                    pulseRunes(world, centerPos, quickCheck.recipe.getPattern(), quickCheck.augmentPositions, rune.cachedPassiveRotation, true);
-                    return;
-                }
-            }
-            rune.cachedPassiveRecipeId = "";
-        }
 
         MatchResult match = findBestCandidate(world, centerPos);
 
@@ -91,7 +100,16 @@ public class RitualSystem {
             rune.cachedPassiveRotation = match.rotation;
             rune.markDirty();
 
-            pulseRunes(world, centerPos, match.recipe.getPattern(), match.augmentPositions, match.rotation, true);
+            // Get facing state and pass it to pulseRunes
+            BlockState state = world.getBlockState(centerPos);
+            Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
+            pulseRunes(world, centerPos, match.recipe.getPattern(), match.augmentPositions, match.rotation, true, facing);
+        } else {
+            if (!rune.cachedPassiveRecipeId.isEmpty()) {
+                rune.cachedPassiveRecipeId = "";
+                rune.markDirty();
+            }
         }
     }
 
@@ -105,11 +123,15 @@ public class RitualSystem {
 
     private static MatchResult findBestCandidate(ServerWorld world, BlockPos centerPos) {
         float currentPressure = getPressure(world, centerPos);
+
+        BlockState state = world.getBlockState(centerPos);
+        Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
         MatchResult bestMatch = new MatchResult(null, 0, MatchStatus.NONE, Text.empty(), -1, Collections.emptyList());
 
         for (RitualRecipe recipe : RitualManager.INSTANCE.getAll().values()) {
             for (int r = 0; r < 4; r++) {
-                MatchResult result = analyzeRecipe(world, centerPos, recipe, r, currentPressure);
+                MatchResult result = analyzeRecipe(world, centerPos, recipe, r, currentPressure, facing);
 
                 if (result.status == MatchStatus.SUCCESS) {
                     if (bestMatch.status != MatchStatus.SUCCESS || result.score > bestMatch.score) {
@@ -126,13 +148,15 @@ public class RitualSystem {
         return bestMatch;
     }
 
-    private static MatchResult analyzeRecipe(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, float currentPressure) {
+    private static MatchResult analyzeRecipe(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, float currentPressure, Direction facing) {
         Map<BlockPos, RuneType> pattern = recipe.getPattern();
         int totalRunes = pattern.size();
         int matchedRunes = 0;
 
         for (Map.Entry<BlockPos, RuneType> entry : pattern.entrySet()) {
-            BlockPos worldPos = center.add(rotate(entry.getKey(), rotation));
+            BlockPos offset = transform(entry.getKey(), facing, rotation);
+            BlockPos worldPos = center.add(offset);
+
             BlockState state = world.getBlockState(worldPos);
 
             if (state.getBlock() instanceof RuneBlock && state.get(RuneBlock.TYPE) == entry.getValue()) {
@@ -156,11 +180,14 @@ public class RitualSystem {
         List<BlockPos> augmentPositions = new ArrayList<>();
 
         for (RitualAugment aug : recipe.getAugments()) {
-            BlockPos worldPos = center.add(rotate(aug.getOffset(), rotation));
+            BlockPos offset = transform(aug.getOffset(), facing, rotation);
+            BlockPos worldPos = center.add(offset);
             BlockState state = world.getBlockState(worldPos);
 
             if (state.getBlock() instanceof RuneBlock && state.get(RuneBlock.TYPE) == aug.getRune()) {
                 activeAugments.add(aug);
+                // Store the raw recipe offset, not the transformed world offset.
+                // pulseRunes will handle the transformation.
                 augmentPositions.add(aug.getOffset());
                 score += 10;
             }
@@ -175,8 +202,8 @@ public class RitualSystem {
         }
 
         boolean itemsValid = effectiveRecipe.isShapeless() ?
-                checkItemsShapeless(world, center, effectiveRecipe, rotation) :
-                checkItemsStrict(world, center, effectiveRecipe, rotation);
+                checkItemsShapeless(world, center, effectiveRecipe, rotation, facing) :
+                checkItemsStrict(world, center, effectiveRecipe, rotation, facing);
 
         if (!itemsValid) {
             return new MatchResult(effectiveRecipe, rotation, MatchStatus.ITEM_FAIL, Text.literal("§6Missing or Incorrect Items."), score + 50, augmentPositions);
@@ -191,10 +218,13 @@ public class RitualSystem {
 
         rune.setRunningRitual(recipe.getId(), rotation, startup, interval);
 
-        // Fix #4: Trigger visual pulse immediately upon activation
         List<BlockPos> augOffsets = new ArrayList<>();
         for(RitualAugment aug : recipe.getAugments()) augOffsets.add(aug.getOffset());
-        pulseRunes(world, center, recipe.getPattern(), augOffsets, rotation, false);
+
+        BlockState state = world.getBlockState(center);
+        Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
+        pulseRunes(world, center, recipe.getPattern(), augOffsets, rotation, false, facing);
 
         if (startup > 0) {
             world.playSound(null, center, SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS, 1.0f, 0.5f);
@@ -212,11 +242,14 @@ public class RitualSystem {
         Map<BlockPos, RuneType> pattern = recipe.getPattern();
         int rot = rune.activeRotation;
 
+        BlockState state = world.getBlockState(center);
+        Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
         if (world.getTime() % 2 == 0) {
             for (BlockPos offset : pattern.keySet()) {
                 if (offset.equals(BlockPos.ORIGIN)) continue;
 
-                BlockPos runePos = center.add(rotate(offset, rot));
+                BlockPos runePos = center.add(transform(offset, facing, rot));
                 Vec3d start = new Vec3d(runePos.getX() + 0.5, runePos.getY() + 0.5, runePos.getZ() + 0.5);
                 Vec3d target = new Vec3d(center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5);
                 Vec3d dir = target.subtract(start).normalize().multiply(0.2);
@@ -231,10 +264,13 @@ public class RitualSystem {
         RitualRecipe recipe = RitualManager.INSTANCE.getAll().get(new Identifier(id));
         if (recipe == null) return;
 
+        BlockState state = world.getBlockState(center);
+        Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
         if (recipe.isContinuous()) {
             world.playSound(null, center, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 1.0f, 1.0f);
         } else {
-            MatchResult check = analyzeRecipe(world, center, recipe, rune.activeRotation, getPressure(world, center));
+            MatchResult check = analyzeRecipe(world, center, recipe, rune.activeRotation, getPressure(world, center), facing);
             if (check.status == MatchStatus.SUCCESS) {
                 executeEffect(world, center, check.recipe, rune.activeRotation);
             }
@@ -247,9 +283,37 @@ public class RitualSystem {
         RitualRecipe recipe = RitualManager.INSTANCE.getAll().get(new Identifier(id));
         if (recipe == null) { rune.stopRitual(); return; }
 
-        int rot = rune.activeRotation;
+        Chunk chunk = world.getChunk(center);
+        if (!(chunk instanceof AetherAttachment)) { rune.stopRitual(); return; }
+        AetherChunkData data = ((AetherAttachment) chunk).getAetherData();
 
-        MatchResult check = analyzeRecipe(world, center, recipe, rot, getPressure(world, center));
+        // Consumption & Stability
+        float currentP = data.getPressure();
+        float currentS = data.getStability();
+
+        if (currentP < recipe.getMinPressure()) {
+            world.playSound(null, center, SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, SoundCategory.BLOCKS, 0.5f, 0.5f);
+            return;
+        }
+
+        if (currentS < 0.5f) {
+            world.spawnParticles(ParticleTypes.SMOKE, center.getX()+0.5, center.getY()+0.5, center.getZ()+0.5, 3, 0.2, 0.2, 0.2, 0.05);
+        }
+        if (currentS < 0.2f) {
+            if (world.random.nextFloat() < 0.3f) {
+                world.playSound(null, center, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.BLOCKS, 0.5f, 0.5f);
+                return;
+            }
+        }
+
+        data.setPressure(Math.max(0, currentP - recipe.getPressureCost()));
+        data.setStability(Math.max(0, currentS - recipe.getInstabilityCost()));
+
+        int rot = rune.activeRotation;
+        BlockState state = world.getBlockState(center);
+        Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
+        MatchResult check = analyzeRecipe(world, center, recipe, rot, currentP, facing);
 
         if (check.status != MatchStatus.SUCCESS) {
             rune.stopRitual();
@@ -258,29 +322,29 @@ public class RitualSystem {
         }
 
         if (check.recipe.consumesItem()) {
-            consumeItemFromPattern(world, center, check.recipe, rot);
+            consumeItemFromPattern(world, center, check.recipe, rot, facing);
         }
 
-        pulseRunes(world, center, check.recipe.getPattern(), check.augmentPositions, rot, false);
+        pulseRunes(world, center, check.recipe.getPattern(), check.augmentPositions, rot, false, facing);
         executeEffect(world, center, check.recipe, rot);
     }
 
-    private static void consumeItemFromPattern(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation) {
+    private static void consumeItemFromPattern(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, Direction facing) {
         if (recipe.isShapeless()) {
-            consumeShapeless(world, center, recipe, rotation);
+            consumeShapeless(world, center, recipe, rotation, facing);
         } else {
-            consumeStrict(world, center, recipe, rotation);
+            consumeStrict(world, center, recipe, rotation, facing);
         }
     }
 
-    private static void consumeStrict(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation) {
+    private static void consumeStrict(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, Direction facing) {
         String globalReq = recipe.getRequiredItem();
 
         for (Map.Entry<BlockPos, RuneType> entry : recipe.getPattern().entrySet()) {
             if (entry.getValue() != RuneType.ITEM) continue;
 
             BlockPos defPos = entry.getKey();
-            BlockPos worldPos = center.add(rotate(defPos, rotation));
+            BlockPos worldPos = center.add(transform(defPos, facing, rotation));
 
             String specificItem = recipe.getItemRequirements().get(defPos);
             String targetItem = (specificItem != null && !specificItem.isEmpty()) ? specificItem : globalReq;
@@ -300,7 +364,7 @@ public class RitualSystem {
         }
     }
 
-    private static void consumeShapeless(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation) {
+    private static void consumeShapeless(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, Direction facing) {
         List<String> toConsume = new ArrayList<>();
         String globalReq = recipe.getRequiredItem();
         for (Map.Entry<BlockPos, RuneType> entry : recipe.getPattern().entrySet()) {
@@ -316,7 +380,7 @@ public class RitualSystem {
         for (Map.Entry<BlockPos, RuneType> entry : recipe.getPattern().entrySet()) {
             if (entry.getValue() != RuneType.ITEM) continue;
 
-            BlockPos worldPos = center.add(rotate(entry.getKey(), rotation));
+            BlockPos worldPos = center.add(transform(entry.getKey(), facing, rotation));
             BlockEntity be = world.getBlockEntity(worldPos);
 
             if (be instanceof RuneBlockEntity rune) {
@@ -341,7 +405,7 @@ public class RitualSystem {
         }
     }
 
-    private static boolean checkItemsStrict(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation) {
+    private static boolean checkItemsStrict(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, Direction facing) {
         String globalReq = recipe.getRequiredItem();
         boolean requireAll = recipe.requiresAllItems();
         boolean itemSatisfied = false;
@@ -351,7 +415,7 @@ public class RitualSystem {
             if (entry.getValue() != RuneType.ITEM) continue;
 
             BlockPos defPos = entry.getKey();
-            BlockPos worldPos = center.add(rotate(defPos, rotation));
+            BlockPos worldPos = center.add(transform(defPos, facing, rotation));
 
             String specific = recipe.getItemRequirements().get(defPos);
             String target = (specific != null && !specific.isEmpty()) ? specific : globalReq;
@@ -376,7 +440,7 @@ public class RitualSystem {
         return true;
     }
 
-    private static boolean checkItemsShapeless(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation) {
+    private static boolean checkItemsShapeless(ServerWorld world, BlockPos center, RitualRecipe recipe, int rotation, Direction facing) {
         List<String> required = new ArrayList<>();
         String globalReq = recipe.getRequiredItem();
 
@@ -395,7 +459,7 @@ public class RitualSystem {
         List<String> available = new ArrayList<>();
         for (Map.Entry<BlockPos, RuneType> entry : recipe.getPattern().entrySet()) {
             if (entry.getValue() == RuneType.ITEM) {
-                BlockPos worldPos = center.add(rotate(entry.getKey(), rotation));
+                BlockPos worldPos = center.add(transform(entry.getKey(), facing, rotation));
                 BlockEntity be = world.getBlockEntity(worldPos);
                 if (be instanceof RuneBlockEntity rune) {
                     ItemStack stack = rune.getStack();
@@ -424,26 +488,46 @@ public class RitualSystem {
         }
     }
 
-    private static BlockPos rotate(BlockPos pos, int rotation) {
-        return switch (rotation) {
-            case 1 -> new BlockPos(-pos.getZ(), pos.getY(), pos.getX());
-            case 2 -> new BlockPos(-pos.getX(), pos.getY(), -pos.getZ());
-            case 3 -> new BlockPos(pos.getZ(), pos.getY(), -pos.getX());
-            default -> pos;
+    private static BlockPos transform(BlockPos pos, Direction facing, int rotation) {
+        int px = pos.getX();
+        int pz = pos.getZ();
+        int py = pos.getY();
+
+        int rx = switch(rotation) {
+            case 1 -> -pz;
+            case 2 -> -px;
+            case 3 -> pz;
+            default -> px;
+        };
+        int rz = switch(rotation) {
+            case 1 -> px;
+            case 2 -> -pz;
+            case 3 -> -px;
+            default -> pz;
+        };
+        int ry = py;
+
+        return switch (facing) {
+            case DOWN -> new BlockPos(rx, -ry, -rz);
+            case NORTH -> new BlockPos(-rx, -rz, -ry);
+            case SOUTH -> new BlockPos(rx, -rz, ry);
+            case WEST -> new BlockPos(-ry, -rz, rx);
+            case EAST -> new BlockPos(ry, -rz, -rx);
+            default -> new BlockPos(rx, ry, rz);
         };
     }
 
-    private static void pulseRunes(ServerWorld world, BlockPos center, Map<BlockPos, RuneType> pattern, List<BlockPos> augmentOffsets, int rotation, boolean weak) {
+    private static void pulseRunes(ServerWorld world, BlockPos center, Map<BlockPos, RuneType> pattern, List<BlockPos> augmentOffsets, int rotation, boolean weak, Direction facing) {
         if (world.getBlockEntity(center) instanceof RuneBlockEntity rune) {
             if (rune.activationTimer == 0) rune.activate(weak);
         }
 
         for (BlockPos offset : pattern.keySet()) {
-            activateAt(world, center.add(rotate(offset, rotation)), weak);
+            activateAt(world, center.add(transform(offset, facing, rotation)), weak);
         }
 
         for (BlockPos offset : augmentOffsets) {
-            activateAt(world, center.add(rotate(offset, rotation)), weak);
+            activateAt(world, center.add(transform(offset, facing, rotation)), weak);
         }
     }
 
@@ -463,12 +547,24 @@ public class RitualSystem {
                 owner = rune.getOwner();
             }
             effect.run(world, center, recipe, rotation, owner);
-        } else {
-            System.out.println("Unknown ritual effect: " + recipe.getEffectId());
+
+            // DEBUG OVERLAY
+            String ownerName = (owner != null) ? owner.toString().substring(0, 5) + "..." : "Null";
+            boolean affectsOwner = recipe.affectsOwner();
+
+            // Send to all players nearby
+            world.getPlayers().forEach(p -> {
+                if (p.squaredDistanceTo(center.getX(), center.getY(), center.getZ()) < 100) {
+                    p.sendMessage(Text.literal("Ritual: §b" + recipe.getId().getPath() + " §f| Owner: §e" + ownerName + " §f| Affects Owner: §a" + affectsOwner), true);
+                }
+            });
         }
 
+        BlockState state = world.getBlockState(center);
+        Direction facing = state.contains(AbstractRuneBlock.FACING) ? state.get(AbstractRuneBlock.FACING) : Direction.UP;
+
         if (!recipe.isContinuous()) {
-            pulseRunes(world, center, recipe.getPattern(), Collections.emptyList(), rotation, false);
+            pulseRunes(world, center, recipe.getPattern(), Collections.emptyList(), rotation, false, facing);
             world.playSound(null, center, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
         }
     }

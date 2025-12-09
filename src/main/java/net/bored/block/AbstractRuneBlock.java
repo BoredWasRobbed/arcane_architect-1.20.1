@@ -14,6 +14,7 @@ import net.minecraft.fluid.Fluids;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -28,16 +29,24 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractRuneBlock extends BlockWithEntity implements Waterloggable {
     public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-    // A very thin shape, like a carpet or redstone dust
-    protected static final VoxelShape SHAPE = Block.createCuboidShape(0.0D, 0.0D, 0.0D, 16.0D, 1.0D, 16.0D);
+    public static final DirectionProperty FACING = Properties.FACING;
+
+    // Shapes for each face (Carpet-like thickness)
+    protected static final VoxelShape SHAPE_UP = Block.createCuboidShape(0.0D, 0.0D, 0.0D, 16.0D, 1.0D, 16.0D);
+    protected static final VoxelShape SHAPE_DOWN = Block.createCuboidShape(0.0D, 15.0D, 0.0D, 16.0D, 16.0D, 16.0D);
+    protected static final VoxelShape SHAPE_NORTH = Block.createCuboidShape(0.0D, 0.0D, 15.0D, 16.0D, 16.0D, 16.0D);
+    protected static final VoxelShape SHAPE_SOUTH = Block.createCuboidShape(0.0D, 0.0D, 0.0D, 16.0D, 16.0D, 1.0D);
+    protected static final VoxelShape SHAPE_EAST = Block.createCuboidShape(0.0D, 0.0D, 0.0D, 1.0D, 16.0D, 16.0D);
+    protected static final VoxelShape SHAPE_WEST = Block.createCuboidShape(15.0D, 0.0D, 0.0D, 16.0D, 16.0D, 16.0D);
 
     public AbstractRuneBlock(Settings settings) {
         super(settings);
-        this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false));
+        this.setDefaultState(this.stateManager.getDefaultState()
+                .with(WATERLOGGED, false)
+                .with(FACING, Direction.UP));
     }
 
     // We use ENTITYBLOCK_ANIMATED so the BlockEntityRenderer handles ALL rendering.
-    // The block itself will have no standard model.
     @Override
     public BlockRenderType getRenderType(BlockState state) {
         return BlockRenderType.ENTITYBLOCK_ANIMATED;
@@ -45,7 +54,15 @@ public abstract class AbstractRuneBlock extends BlockWithEntity implements Water
 
     @Override
     public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return SHAPE;
+        Direction facing = state.get(FACING);
+        return switch (facing) {
+            case DOWN -> SHAPE_DOWN;
+            case NORTH -> SHAPE_NORTH;
+            case SOUTH -> SHAPE_SOUTH;
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+            default -> SHAPE_UP;
+        };
     }
 
     @Nullable
@@ -58,21 +75,21 @@ public abstract class AbstractRuneBlock extends BlockWithEntity implements Water
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (world.isClient) return ActionResult.SUCCESS;
 
-        // Debug interaction: Toggle active state or print info
         BlockEntity be = world.getBlockEntity(pos);
         if (be instanceof RuneBlockEntity rune) {
-            rune.tickCounter += 10; // Spin faster briefly
-            // Logic for rituals will go here later
+            rune.tickCounter += 10;
         }
         return ActionResult.SUCCESS;
     }
 
-    // Waterlogging Logic
+    // Waterlogging & Placement Logic
     @Nullable
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
         FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-        return this.getDefaultState().with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
+        return this.getDefaultState()
+                .with(FACING, ctx.getSide()) // Use the face clicked
+                .with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
     }
 
     @Override
@@ -90,6 +107,6 @@ public abstract class AbstractRuneBlock extends BlockWithEntity implements Water
 
     @Override
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-        builder.add(WATERLOGGED);
+        builder.add(WATERLOGGED, FACING);
     }
 }

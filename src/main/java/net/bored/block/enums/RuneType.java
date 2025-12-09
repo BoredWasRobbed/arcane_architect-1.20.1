@@ -11,7 +11,8 @@ public enum RuneType implements StringIdentifiable {
     AMPLIFY("amplify", 0.8f, 0.0f, 1.0f),// Purple
     CHANNEL("channel", 1.0f, 1.0f, 0.0f),// Yellow
     WALL("wall", 0.5f, 0.5f, 0.5f),      // Gray
-    ITEM("item", 1.0f, 0.84f, 0.0f);     // Gold
+    ITEM("item", 1.0f, 0.84f, 0.0f),     // Gold
+    VENT("vent", 0.8f, 0.9f, 0.9f);      // Steam/Light Gray
 
     private final String name;
     public final float r;

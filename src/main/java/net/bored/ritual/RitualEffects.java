@@ -1,10 +1,9 @@
-package net.bored.registry;
+package net.bored.ritual;
 
 import net.bored.ArcaneArchitect;
-import net.bored.api.RitualEffect;
-import net.bored.effect.ExplosionEffect;
-import net.bored.effect.LevitationEffect;
-import net.bored.effect.LightningEffect;
+import net.bored.ritual.effect.ExplosionEffect;
+import net.bored.ritual.effect.LevitationEffect;
+import net.bored.ritual.effect.LightningEffect;
 import net.minecraft.util.Identifier;
 
 import java.util.HashMap;

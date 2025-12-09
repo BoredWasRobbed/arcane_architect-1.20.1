@@ -1,6 +1,6 @@
 package net.bored.mixin;
 
-import net.bored.system.AetherPressureSystem;
+import net.bored.aether.AetherPressureSystem;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.chunk.WorldChunk;
 import org.spongepowered.asm.mixin.Mixin;

@@ -1,6 +1,4 @@
-package net.bored.access;
-
-import net.bored.data.AetherChunkData;
+package net.bored.aether;
 
 public interface AetherAttachment {
     AetherChunkData getAetherData();

@@ -1,6 +1,5 @@
-package net.bored.api;
+package net.bored.ritual;
 
-import net.bored.recipe.RitualRecipe;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import java.util.UUID;

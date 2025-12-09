@@ -1,4 +1,4 @@
-package net.bored.recipe;
+package net.bored.ritual;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -7,7 +7,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -33,10 +32,14 @@ public class RitualRecipe {
     private final int startupTime;
     private final int interval;
 
+    // Thermodynamics
+    private final float pressureCost;
+    private final float instabilityCost;
+
     // Augments
     private final List<RitualAugment> augments;
 
-    public RitualRecipe(Identifier id, Map<BlockPos, RuneType> pattern, Map<BlockPos, String> itemRequirements, float minPressure, float maxPressure, String effectId, JsonObject effectData, boolean continuous, String requiredItem, boolean consumeItem, boolean requireAllItems, boolean clearItems, boolean shapeless, int startupTime, int interval, boolean affectsOwner, List<RitualAugment> augments) {
+    public RitualRecipe(Identifier id, Map<BlockPos, RuneType> pattern, Map<BlockPos, String> itemRequirements, float minPressure, float maxPressure, String effectId, JsonObject effectData, boolean continuous, String requiredItem, boolean consumeItem, boolean requireAllItems, boolean clearItems, boolean shapeless, int startupTime, int interval, boolean affectsOwner, float pressureCost, float instabilityCost, List<RitualAugment> augments) {
         this.id = id;
         this.pattern = pattern;
         this.itemRequirements = itemRequirements;
@@ -53,6 +56,8 @@ public class RitualRecipe {
         this.startupTime = startupTime;
         this.interval = interval;
         this.affectsOwner = affectsOwner;
+        this.pressureCost = pressureCost;
+        this.instabilityCost = instabilityCost;
         this.augments = augments != null ? augments : new ArrayList<>();
     }
 
@@ -74,6 +79,8 @@ public class RitualRecipe {
         this.startupTime = original.startupTime;
         this.interval = original.interval;
         this.affectsOwner = newAffectsOwner; // Modified
+        this.pressureCost = original.pressureCost;
+        this.instabilityCost = original.instabilityCost;
         this.augments = original.augments;
     }
 
@@ -120,5 +127,7 @@ public class RitualRecipe {
     public int getStartupTime() { return startupTime; }
     public int getInterval() { return interval; }
     public boolean affectsOwner() { return affectsOwner; }
+    public float getPressureCost() { return pressureCost; }
+    public float getInstabilityCost() { return instabilityCost; }
     public List<RitualAugment> getAugments() { return augments; }
 }
